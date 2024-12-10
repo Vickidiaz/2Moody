@@ -8,6 +8,8 @@ const LocalStrategy = require("passport-local").Strategy;
 const bcrypt = require("bcryptjs");
 const { MongoClient, ObjectId } = require("mongodb");
 const cors = require("cors");
+const isProduction = process.env.NODE_ENV === "production";
+
 require("dotenv").config();
 
 const app = express();
@@ -21,7 +23,7 @@ const allowedOrigin = [
 app.use(
   cors({
     origin: allowedOrigin, // Allow specific origins
-    methods: ["GET", "POST", "PUT"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true, // Allow credentials (cookies, HTTP auth)
   })
 );
@@ -81,19 +83,38 @@ async function main() {
     });
 
     // Session Setup
+    // app.use(
+    //   session({
+    //     secret: process.env.SESSION_SECRET || "default_secret_key",
+    //     resave: false,
+    //     saveUninitialized: false,
+    //     cookie: { maxAge: 3600000, secure: false, sameSite: "lax" },
+    //   })
+    // );
     app.use(
       session({
         secret: process.env.SESSION_SECRET || "default_secret_key",
         resave: false,
         saveUninitialized: false,
-        cookie: { maxAge: 3600000, secure: true, sameSite: "none" },
+        cookie: {
+          maxAge: 3600000,
+          secure: isProduction, // Use secure cookies in production
+          sameSite: isProduction ? "none" : "lax", // Adjust sameSite for deployment
+        },
       })
     );
     app.use(passport.initialize());
     app.use(passport.session());
 
     // Middleware to check if a user is authenticated
+    // function ensureAuthenticated(req, res, next) {
+    //   if (req.isAuthenticated()) {
+    //     return next();
+    //   }
+    //   res.status(401).json({ message: "Unauthorized" });
+    // }
     function ensureAuthenticated(req, res, next) {
+      console.log("Session User:", req.user);
       if (req.isAuthenticated()) {
         return next();
       }
